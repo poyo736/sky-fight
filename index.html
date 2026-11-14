@@ -14,12 +14,13 @@
    SKY FIGHT
   </title>
 <link href="style.css" rel="stylesheet"/>
+<script defer src="audio.js"></script>
 <script defer="" src="main.js">
 </script>
 </head>
 <body>
 <main>
-<section class="screen home active" id="home"><div aria-hidden="true" class="home-noise"></div><div aria-hidden="true" class="home-grid"></div><div aria-hidden="true" class="home-lightning"></div><div class="home-topline"><span class="home-brand">SF / ORIGINAL FIGHTING GAME</span><span class="home-version">VER. 1.0 · 4 FIGHTERS</span></div><div aria-hidden="true" class="home-characters"><img alt="" class="home-character hc-mii" src="assets/mii.png"/><img alt="" class="home-character hc-dai" src="assets/dai_clean.png"/><img alt="" class="home-character hc-sei" src="assets/sei.png"/><img alt="" class="home-character hc-lala" src="assets/lala.png"/></div><div class="home-center"><div class="home-kicker"><span class="home-line"></span> THE BATTLE BEGINS <span class="home-line"></span></div><h1 class="home-logo"><span class="home-logo-sky">SKY</span><span class="home-logo-fight">FIGHT</span></h1><div aria-hidden="true" class="home-strike"></div><p class="home-description">4人のファイターが、頂点をかけて激突する。</p><button class="home-start" id="startButton"><span class="home-start-icon">▶</span><span>GAME START</span><span class="home-start-arrow">›</span></button><p class="home-tip">SELECT YOUR FIGHTER · DEFEAT THE CPU</p></div><div class="home-footer"><span>DAI · MII · SEI · LALA</span><span>READY FOR BATTLE?</span></div></section>
+<section class="screen home active" id="home"><div aria-hidden="true" class="home-noise"></div><div aria-hidden="true" class="home-grid"></div><div aria-hidden="true" class="home-lightning"></div><div class="home-topline"><span class="home-brand">SF / ORIGINAL FIGHTING GAME</span><span class="home-version">VER. 2.0 · 4 FIGHTERS</span></div><div aria-hidden="true" class="home-characters"><img alt="" class="home-character hc-mii" src="assets/mii.png"/><img alt="" class="home-character hc-dai" src="assets/dai_clean.png"/><img alt="" class="home-character hc-sei" src="assets/sei.png"/><img alt="" class="home-character hc-lala" src="assets/lala.png"/></div><div class="home-center"><div class="home-kicker"><span class="home-line"></span> THE BATTLE BEGINS <span class="home-line"></span></div><h1 class="home-logo"><span class="home-logo-sky">SKY</span><span class="home-logo-fight">FIGHT</span></h1><div aria-hidden="true" class="home-strike"></div><p class="home-description">4人のファイターが、頂点をかけて激突する。</p><button class="home-start" id="startButton"><span class="home-start-icon">▶</span><span>GAME START</span><span class="home-start-arrow">›</span></button><p class="home-tip">SELECT YOUR FIGHTER · DEFEAT THE CPU</p></div><div class="home-footer"><span>DAI · MII · SEI · LALA</span><span>READY FOR BATTLE?</span></div></section>
 <section class="screen" id="select">
 <h2>
      SELECT YOUR FIGHTER
@@ -61,8 +62,10 @@
     </h2>
 <p id="matchup">
 </p>
+<div class="level-header"><span class="level-header-label">CHOOSE YOUR CHALLENGE</span><span class="level-header-count">10 DIFFICULTIES</span></div>
 <div class="levels" id="levels">
 </div>
+<div class="level-readout" aria-live="polite"><div class="level-readout-top"><strong id="levelCurrent">LEVEL 03 — NORMAL</strong><span>CPU THREAT</span></div><div class="level-danger-track"><div class="level-danger-fill" id="levelDanger"></div></div><p id="levelDescription">バランスの良いCPU</p></div>
 <div class="actions">
 <button id="battleButton">
       BATTLE START
@@ -125,13 +128,16 @@
 <div class="hp-fill" id="pHp">
 </div>
 </div>
-<div class="special-status" id="pSpecial">必殺技：被ダメージ30%で解放</div>
+<div class="special-status" id="pSpecial">SPECIAL 0% · 攻撃/被弾でチャージ</div>
+<div class="special-meter-track" id="pMeterTrack" role="progressbar" aria-label="必殺技ゲージ"><div class="special-meter-fill" id="pMeter"></div></div>
 <div class="guard-track"><div class="guard-fill" id="pGuard"></div></div>
+<div class="round-wins" id="pRoundWins" aria-label="プレイヤーの獲得ラウンド">○○</div>
 <small id="pHpText">
        100 / 100
       </small>
 </div>
 <div class="battle-center">
+<div class="round-counter" id="roundNumber">ROUND 1 / 3</div>
 <b>
        SKY FIGHT
       </b>
@@ -150,8 +156,10 @@
 <div class="hp-fill cpu-hp" id="cHp">
 </div>
 </div>
-<div class="special-status" id="cSpecial">必殺技：被ダメージ30%で解放</div>
+<div class="special-status" id="cSpecial">SPECIAL 0% · 攻撃/被弾でチャージ</div>
+<div class="special-meter-track" id="cMeterTrack" role="progressbar" aria-label="必殺技ゲージ"><div class="special-meter-fill" id="cMeter"></div></div>
 <div class="guard-track"><div class="guard-fill" id="cGuard"></div></div>
+<div class="round-wins" id="cRoundWins" aria-label="CPUの獲得ラウンド">○○</div>
 <small id="cHpText">
        100 / 100
       </small>
@@ -160,7 +168,13 @@
 <div class="arena-wrap">
 <canvas aria-label="格闘ゲームフィールド" height="520" id="arena" width="1000">
 </canvas>
-<div class="battle-overlay" id="battleOverlay">
+<div class="special-cutin" id="specialCutin" aria-hidden="true">
+  <div class="cutin-speedlines"></div><div class="cutin-slash"></div>
+  <div class="cutin-portrait"><img id="cutinPortrait" src="assets/dai.png" alt=""></div>
+  <div class="cutin-copy"><span id="cutinLabel">SPECIAL ATTACK</span><strong id="cutinName">ダイ</strong><b id="cutinMove">ファイアボール</b><small id="cutinSide">PLAYER SPECIAL</small></div>
+  <div class="cutin-flash"></div>
+</div>
+<div class="battle-overlay" id="battleOverlay" aria-live="polite">
 <h2 id="overlayTitle">
        ROUND 1
       </h2>
@@ -184,6 +198,7 @@
       A / D 移動　W または Space ジャンプ　J パンチ　K キック　L ガード（最大3秒）　<strong>I 必殺技</strong>（HP30%減少で解放）
      </p>
 <div class="actions">
+<button class="secondary fullscreen-button" id="fullscreenButton" type="button" aria-pressed="false">⛶ 全画面表示</button>
 <button class="secondary" id="retryButton">
        再戦
       </button>
@@ -194,5 +209,6 @@
 </div>
 </section>
 </main>
+<div id="audioPanel" class="audio-panel" aria-label="サウンド設定"><button id="audioToggle" type="button" aria-label="サウンドを切り替える">🔊 SOUND ON</button><button id="audioSettings" type="button" aria-expanded="false" aria-controls="audioOptions" aria-label="音量設定">⚙</button><div id="audioOptions" class="audio-options" hidden><label>BGM <input id="musicVolume" type="range" min="0" max="100" value="38"></label><label>効果音 <input id="sfxVolume" type="range" min="0" max="100" value="85"></label><small>※ 初回のクリックで音声が有効になります</small></div></div>
 <div aria-hidden="true" hidden="" id="step17-note">STEP 18: All fighters specials enabled</div><script defer src="pwa.js"></script></body>
 </html>

@@ -6,7 +6,7 @@ const fighters=[
 ];
 let phase='player',player=null,cpu=null,selected=fighters[0],level=3;
 const $=id=>document.getElementById(id);
-function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('active',s.id===id));}
+function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('active',s.id===id));window.SkyAudio?.scene(id,level);}
 function renderFighters(){
  $('characterList').innerHTML='';
  fighters.forEach(f=>{const card=document.createElement('button');card.className='fighter'+(f.id===selected.id?' chosen':'');card.style.setProperty('--accent',f.color);card.innerHTML=`<div class="avatar"><img src="${f.image}" alt="${f.name}の立ち絵"></div><strong>${f.name}</strong><small>${f.type}</small>`;card.addEventListener('click',()=>{selected=f;renderFighters();renderDetail();});$('characterList').appendChild(card);});
@@ -33,7 +33,37 @@ function beginSelect(){phase='player';player=null;cpu=null;selected=fighters[0];
 $('startButton').addEventListener('click',beginSelect);
 $('confirmButton').addEventListener('click',()=>{if(phase==='player'){player=selected;phase='cpu';selected=fighters.find(f=>f.id!==player.id);$('selectGuide').textContent='対戦するCPUキャラクターを選んでね！';renderFighters();renderDetail();}else{cpu=selected;showDifficulty();}});
 $('backButton').addEventListener('click',()=>{if(phase==='cpu'){phase='player';selected=player;player=null;$('selectGuide').textContent='操作するキャラクターを選んでね！';renderFighters();renderDetail();}else show('home');});
-function showDifficulty(){$('matchup').textContent=`${player.name} VS ${cpu.name}`;$('levels').innerHTML='';for(let i=1;i<=5;i++){const b=document.createElement('button');b.className='level'+(level===i?' chosen':'');b.textContent='LEVEL '+i;b.addEventListener('click',()=>{level=i;showDifficulty();});$('levels').appendChild(b);}show('difficulty');}
+const levelData = [
+  ['ROOKIE','はじめての対戦','ゆっくり動く練習相手'],
+  ['BEGINNER','ウォームアップ','基本の攻撃を覚えよう'],
+  ['NORMAL','スタンダード','バランスの良いCPU'],
+  ['SKILLED','チャレンジャー','反撃とガードが増える'],
+  ['EXPERT','ベテラン','攻守の切り替えが速い'],
+  ['ELITE','エリート','間合いを見て攻めてくる'],
+  ['MASTER','マスター','隙を逃さない強敵'],
+  ['GRANDMASTER','グランドマスター','精密な反撃と回避'],
+  ['LEGEND','レジェンド','必殺技を使いこなす'],
+  ['NIGHTMARE','最強の挑戦者','超高速の判断・強烈な連撃']
+];
+function showDifficulty(){
+  $('matchup').textContent=`${player.name} VS ${cpu.name}`;
+  const container=$('levels');container.innerHTML='';
+  for(let i=1;i<=10;i++){
+    const [rank,title,description]=levelData[i-1];
+    const b=document.createElement('button');
+    b.type='button';b.className='level level-'+i+(level===i?' chosen':'');
+    b.setAttribute('aria-pressed',String(level===i));
+    b.innerHTML=`<span class="level-index">${String(i).padStart(2,'0')}</span><span class="level-meta"><strong>${rank}</strong><small>${title}</small></span><span class="level-chevron">↗</span>`;
+    b.addEventListener('click',()=>{level=i;showDifficulty();});container.appendChild(b);
+  }
+  const [rank,title,description]=levelData[level-1];
+  $('levelCurrent').textContent=`LEVEL ${String(level).padStart(2,'0')} — ${rank}`;
+  $('levelDescription').textContent=description;
+  $('levelDanger').style.width=(level*10)+'%';
+  $('levelDanger').classList.toggle('max',level===10);
+  $('difficulty').classList.toggle('nightmare-selected',level===10);
+  show('difficulty');
+}
 $('difficultyBack').addEventListener('click',()=>{phase='cpu';selected=cpu;renderFighters();renderDetail();show('select');});
 // CPU難易度決定後に、対戦カードを表示する
 function showVersus() {
@@ -73,28 +103,69 @@ function createCombatant(f, x, facing) {
   return { f, x, y: FLOOR, vx: 0, vy: 0, facing, hp: maxHp, maxHp,
     width: f.id === 'lala' ? 72 : 82, height: f.id === 'lala' ? 100 : 180,
     guard: false, attack: null, attackUntil: 0, hitDone: false,
-    stunnedUntil: 0, cooldownUntil: 0, aiNext: 0,
+    stunnedUntil: 0, cooldownUntil: 0, aiNext: 0, aiGuardUntil: 0, aiPlan: 0,
     animClock: 0, animState: "idle", animSince: 0, lastGrounded: true,
-    landingUntil: 0, hitFlashUntil: 0, specialReady: false, specialUsed: false, specialUntil: 0, specialCooldown: 0, guardEnergy: 3, healFxUntil: 0 };
+    landingUntil: 0, hitFlashUntil: 0, specialMeter: 0, specialReady: false, specialUsed: false, specialUntil: 0, specialCooldown: 0, guardEnergy: 3, healFxUntil: 0 };
 }
 function startBattle() {
   if (!player || !cpu) return;
   keys.clear();
+  clearSpecialCutin();
   if (animationId) cancelAnimationFrame(animationId);
   match = { p: createCombatant(player, 240, 1), c: createCombatant(cpu, 760, -1),
-    time: 90, running: false, over: false, elapsed: 0, now: 0, aiAttack: false, effects: [], particles: [], rings: [], shake: 0, flash: 0 };
+    time: 90, round: 1, winsP: 0, winsC: 0, roundPause: 0, pendingRound: false, running: false, over: false, cutInRemaining: 0, countdown: 0, countdownPhase: "ready", elapsed: 0, now: 0, aiAttack: false, effects: [], particles: [], rings: [], shake: 0, flash: 0 };
   $('pName').textContent = player.name;
   $('cName').textContent = cpu.name;
   $('battleLevel').textContent = 'CPU LEVEL ' + level;
-  $('overlayTitle').textContent = 'ROUND 1';
-  $('overlayInfo').textContent = player.name + ' VS ' + cpu.name;
-  $('overlayButton').textContent = 'FIGHT!';
-  $('overlayButton').hidden = false;
+  updateRoundHud();
+  $('overlayTitle').textContent = '3';
+  $('overlayInfo').textContent = 'ROUND 1 · GET READY';
+  $('overlayButton').hidden = true;
+  $('battleOverlay').classList.add('countdown-mode');
   $('battleOverlay').classList.remove('hidden');
   updateHud();
   show('battle');
   lastFrame = 0;
   animationId = requestAnimationFrame(frame);
+}
+function updateRoundHud(){
+  if(!match)return;
+  $('roundNumber').textContent='ROUND '+match.round+' / 3';
+  $('pRoundWins').textContent='●'.repeat(match.winsP)+'○'.repeat(2-match.winsP);
+  $('cRoundWins').textContent='●'.repeat(match.winsC)+'○'.repeat(2-match.winsC);
+}
+function resetRound(){
+  const m=match;
+  m.p=createCombatant(player,240,1);
+  m.c=createCombatant(cpu,760,-1);
+  m.time=90;m.elapsed=0;m.now=0;
+  m.effects=[];m.particles=[];m.rings=[];m.shake=0;m.flash=0;
+  m.cutInRemaining=0;m.countdown=0;m.countdownPhase='ready';
+  m.roundPause=0;m.pendingRound=false;m.running=false;
+  clearSpecialCutin();keys.clear();
+  $('overlayTitle').textContent='3';
+  $('overlayInfo').textContent='ROUND '+m.round+' · GET READY';
+  $('overlayButton').hidden=true;
+  $('battleOverlay').classList.add('countdown-mode');
+  $('battleOverlay').classList.remove('hidden','fight-phase');
+  updateRoundHud();updateHud();
+}
+function endRound(winner, byTime=false){
+  if(!match||match.over||match.pendingRound)return;
+  const m=match;
+  m.running=false;keys.clear();clearSpecialCutin();
+  if(winner==='p')m.winsP++;else m.winsC++;
+  updateRoundHud();
+  if(m.winsP>=2||m.winsC>=2||m.round>=3){
+    finish(m.winsP>m.winsC?'WIN!':'LOSE!',(m.winsP>m.winsC?player.name:cpu.name)+' の勝利！ '+m.winsP+' - '+m.winsC);
+    return;
+  }
+  m.pendingRound=true;m.roundPause=2.2;
+  const overlay=$('battleOverlay');
+  overlay.classList.remove('hidden','countdown-mode','fight-phase');
+  $('overlayTitle').textContent=winner==='p'?'ROUND WIN!':'ROUND LOSE';
+  $('overlayInfo').textContent=(byTime?'TIME UP · ':'')+'ROUND '+m.round+' / 3 · '+m.winsP+' - '+m.winsC+'　次のラウンドへ！';
+  $('overlayButton').hidden=true;
 }
 function updateHud() {
   if (!match) return;
@@ -105,22 +176,39 @@ function updateHud() {
   $('battleTime').textContent = Math.ceil(match.time);
   for(const [side,f] of [['p',match.p],['c',match.c]]){
     const e=$(side+'Special');
-    if(e)e.textContent=f.specialReady ? (match.now<f.specialCooldown?'必殺技：クールダウン':'必殺技 READY!') : '必殺技：被ダメージ30%で解放';
+    if(e)e.textContent=f.specialMeter>=100 ? 'SPECIAL READY!  [I]' : 'SPECIAL '+Math.floor(f.specialMeter)+'% · 攻撃/被弾でチャージ';
+    const meter=$(side+'Meter');if(meter)meter.style.width=f.specialMeter+'%';
+    const track=$(side+'MeterTrack');if(track)track.classList.toggle('meter-ready',f.specialMeter>=100);
     const g=$(side+'Guard');if(g)g.style.width=(f.guardEnergy/3*100)+'%';
   }
 }
 function attack(f, kind) {
   if (!match?.running || match.over || match.now < f.cooldownUntil || match.now < f.stunnedUntil) return;
+  window.SkyAudio?.sfx(kind);
   f.attack = kind;
   f.attackUntil = match.now + (kind === 'kick' ? 0.30 : 0.22);
   f.cooldownUntil = match.now + (kind === 'kick' ? 0.68 : 0.43);
   f.hitDone = false;
 }
-// HPが30%以上減ると必殺技が使用可能。回復しても解放状態は維持。
+// STEP 31: Hit-confirmed attacks and taking damage charge the special meter.
+function chargeSpecial(f,amount){
+  if(!f || !Number.isFinite(amount))return;
+  const wasReady=f.specialMeter>=100;
+  f.specialMeter=clamp(f.specialMeter+amount,0,100);
+  f.specialReady=f.specialMeter>=100;
+  if(!wasReady&&f.specialReady&&f===match.p){
+    window.SkyAudio?.sfx('select');
+    burst(f.x,f.y-f.height*.6,'#ffe87a',20,135);
+    ring(f.x,f.y-f.height*.6,'#ffdd69',15,90,.45);
+  }
+}
+
 function applyDamage(attacker, target, raw, knock=18){
   if(match.over)return;
-  const amount=Math.max(1,Math.round(raw*(target.guard?.2:1)));
+  const cpuBonus=(attacker===match.c ? 1 + Math.max(0,level-5)*.055 : 1);
+   const amount=Math.max(1,Math.round(raw*cpuBonus*(target.guard?.2:1)));
   target.hp=Math.max(0,target.hp-amount);
+  window.SkyAudio?.sfx(target.guard?'guard':'hit');
   burst(target.x,target.y-target.height*.52,target.guard?'#8beaff':'#ffe1a1',target.guard?10:20,150);
   ring(target.x,target.y-target.height*.52,target.guard?'#5deaff':'#ffca68',10,55,.26);
   match.shake=Math.max(match.shake,target.guard?3:7);
@@ -128,8 +216,10 @@ function applyDamage(attacker, target, raw, knock=18){
   target.stunnedUntil=match.now+(target.guard?.07:.18);
   target.hitFlashUntil=match.now+.16;
   target.x=clamp(target.x+attacker.facing*(target.guard?5:knock),45,955);
-  if(target.maxHp-target.hp>=target.maxHp*.30)target.specialReady=true;
-  if(target.hp<=0)finish(attacker===match.p?'WIN!':'LOSE!',attacker.f.name+' の勝利！');
+  // Guarded hits grant less meter to the attacker; damage taken also builds meter.
+  chargeSpecial(attacker,target.guard?9:Math.max(15,amount*1.5));
+  chargeSpecial(target,target.guard?Math.max(4,amount*.65):Math.max(11,amount*1.05));
+  if(target.hp<=0)endRound(attacker===match.p?'p':'c');
   updateHud();
 }
 // STEP19: lightweight Canvas VFX (no additional image assets needed).
@@ -160,9 +250,39 @@ function drawVfx(){
     c.beginPath();c.arc(p.x,p.y,p.r,0,Math.PI*2);c.fill();c.restore();
   }
 }
+// STEP 29: Cinematic character-specific special cut-ins, including CPU specials.
+function playSpecialCutin(f){
+  const el=$('specialCutin');
+  if(!el || !match)return;
+  const isPlayer=f===match.p;
+  const palette={dai:['#ff7c38','#ffcf56'],mii:['#a75aff','#6cf4ff'],sei:['#ff455f','#ffca4c'],lala:['#f9b848','#7effbd']};
+  const [primary,secondary]=palette[f.f.id]||palette.dai;
+  el.style.setProperty('--cutin-primary',primary);
+  el.style.setProperty('--cutin-secondary',secondary);
+  el.classList.toggle('cutin-cpu',!isPlayer);
+  $('cutinPortrait').src=f.f.image;
+  $('cutinName').textContent=f.f.name;
+  $('cutinMove').textContent=f.f.special;
+  $('cutinSide').textContent=isPlayer?'PLAYER SPECIAL':'CPU SPECIAL';
+  $('cutinLabel').textContent=f.f.id==='lala'?'RECOVERY BURST':'SPECIAL ATTACK';
+  el.classList.remove('cutin-active');
+  void el.offsetWidth;
+  el.classList.add('cutin-active');
+  el.setAttribute('aria-hidden','false');
+  match.cutInRemaining=1.02;
+  keys.clear();
+}
+function clearSpecialCutin(){
+  const el=$('specialCutin');
+  if(el){el.classList.remove('cutin-active');el.setAttribute('aria-hidden','true');}
+}
 function specialAttack(f){
-  if(!match?.running||match.over||!f.specialReady||match.now<f.specialCooldown||match.now<f.stunnedUntil)return;
-  f.specialCooldown=match.now+7.5;
+  if(!match?.running||match.over||match.cutInRemaining>0||f.specialMeter<100||match.now<f.specialCooldown||match.now<f.stunnedUntil)return;
+  f.specialMeter=0;f.specialReady=false;
+  window.SkyAudio?.sfx('special');
+  playSpecialCutin(f);
+  f.specialCooldown=match.now+0.8;
+  updateHud();
   f.specialUntil=match.now+.55;
   f.animState='special';f.animSince=match.now;
   const target=f===match.p?match.c:match.p;
@@ -231,6 +351,8 @@ function tryHit(a, b) {
 }
 function finish(title, info) {
   match.running = false; match.over = true;
+  clearSpecialCutin();
+  window.SkyAudio?.scene(title.includes('WIN')?'win':'lose');
   $('overlayTitle').textContent = title;
   $('overlayInfo').textContent = info;
   $('overlayButton').textContent = 'もう一度戦う';
@@ -246,20 +368,42 @@ function update(dt) {
   p.guard = keys.has('l') && m.now >= p.stunnedUntil && p.guardEnergy>0;
   p.vx = (keys.has('a') ? -1 : 0) * (190 + p.f.stats[4] * 27) + (keys.has('d') ? 1 : 0) * (190 + p.f.stats[4] * 27);
   if (p.guard || m.now < p.stunnedUntil) p.vx = 0;
-  // CPUは難易度によって判断間隔、攻撃頻度、ガード確率を変える
+  // 10段階AI: 反応速度、間合い管理、ガード、反撃、ジャンプ、必殺技判断を強化。
+  // Lv10でも無限ガード・無限攻撃にならないよう、通常のクールダウンとガード残量を維持。
   if (m.now >= c.aiNext) {
-    const gap = Math.abs(c.x - p.x);
-    c.guard = c.guardEnergy>0 && (p.attack !== null || p.specialUntil>m.now) && gap < 145 && Math.random() < (.12 + level * .12);
-    c.vx = gap > 110 ? c.facing * (130 + level * 27) : gap < 58 ? -c.facing * 85 : 0;
-    if (c.guard) c.vx = 0;
-    if (gap < 145 && !c.guard && Math.random() < (.18 + level * .11)) attack(c, Math.random() < .35 ? 'kick' : 'punch');
-    // 高難易度CPUも時々ジャンプして位置を入れ替える。
-    if(level >= 3 && gap < 185 && c.y >= FLOOR && Math.random() < .045 * (level - 1)) {
-      c.vy = -760;
-      c.vx = c.facing * (210 + level * 25);
+    const gap=Math.abs(c.x-p.x);
+    const high=level>=7, boss=level===10;
+    const pThreat=p.attack!==null && m.now<p.attackUntil;
+    const pSpecial=p.specialUntil>m.now;
+    const inReach=gap < (high?157:140);
+    const defendChance=Math.min(.94,.09+level*.077);
+    const guardReaction=(pThreat||pSpecial)&&gap<175&&Math.random()<defendChance;
+    if(guardReaction&&c.guardEnergy>.20)c.aiGuardUntil=m.now+(boss?.33:.14+level*.014);
+    c.guard=c.guardEnergy>.05 && m.now<c.aiGuardUntil;
+    // 近距離は距離を調整。高難度ではプレイヤーの攻撃中に後退することもある。
+    const ideal=level>=8?103:level>=5?93:85;
+    const moveSpeed=155+level*22;
+    if(c.guard)c.vx=0;
+    else if(gap>ideal+22)c.vx=c.facing*moveSpeed;
+    else if(gap<ideal-27)c.vx=-c.facing*(85+level*12);
+    else c.vx=0;
+    if(high&&pThreat&&gap<150&&!c.guard&&Math.random()<.40)c.vx=-c.facing*(190+level*11);
+    // 攻撃頻度と種類。上位CPUはキックも活用し、間合いを維持する。
+    const strikeChance=Math.min(.98,.18+level*.074);
+    if(inReach&&!c.guard&&m.now>=c.cooldownUntil&&Math.random()<strikeChance){
+      const kickChance=gap>108?.85:(.22+level*.035);
+      attack(c,Math.random()<kickChance?'kick':'punch');
     }
-    if(c.specialReady && m.now>=c.specialCooldown && Math.random()<(.10+level*.10))specialAttack(c);
-    c.aiNext = m.now + (.78 - level * .105) + Math.random() * .18;
+    // プレイヤーが飛び越える際、Lv7以上は追いかけるより着地を待つ。
+    if(level>=3&&c.y>=FLOOR&&gap<200&&Math.random()<(.013+level*.007) && !(high&&p.y<FLOOR-45)){
+      c.vy=-760;c.vx=c.facing*(190+level*20);
+    }
+    if(c.specialMeter>=100&&m.now>=c.specialCooldown&&Math.random()<(.09+level*.072)){
+      if(boss||gap<330||c.f.id==='sei'||c.f.id==='mii'||c.f.id==='lala')specialAttack(c);
+    }
+    // 最上位でも正の判断間隔を保証する（元の式はLv8以上で負になっていた）。
+    const intervals=[.72,.62,.54,.46,.38,.31,.25,.19,.14,.095];
+    c.aiNext=m.now+intervals[level-1]+Math.random()*(boss?.035:.09);
   }
   if (m.now < c.stunnedUntil) c.vx = 0;
   for (const f of [p, c]) {
@@ -295,7 +439,7 @@ function update(dt) {
   tryHit(p, c); if (!m.over) tryHit(c, p);
   if(!m.over)updateEffects(dt);
   vfxUpdate(dt);
-  if (m.time <= 0 && !m.over) finish(p.hp / p.maxHp >= c.hp / c.maxHp ? 'TIME UP — WIN!' : 'TIME UP — LOSE!', '制限時間終了！');
+  if (m.time <= 0 && !m.over && !m.pendingRound) endRound(p.hp / p.maxHp >= c.hp / c.maxHp ? 'p' : 'c',true);
   updateHud();
 }
 // STEP 17: 全キャラクター共通の、立ち絵を崩さないモーション描画。
@@ -409,22 +553,62 @@ function drawArena() {
   pen.restore();
   if(match?.flash){pen.save();pen.fillStyle=`rgba(255,245,225,${match.flash*.65})`;pen.fillRect(0,0,w,h);pen.restore();}
 }
+// STEP 25: Frame-driven countdown. The game clock, physics and AI stay frozen until FIGHT.
+function updateCountdown(dt) {
+  if (!match || match.running || match.over || match.countdownPhase === 'done') return;
+  match.countdown += dt;
+  const elapsed = match.countdown;
+  const overlay = $('battleOverlay');
+  const title = $('overlayTitle');
+  const info = $('overlayInfo');
+  let nextPhase, label;
+  if (elapsed < 1) { nextPhase = '3'; label = '3'; }
+  else if (elapsed < 2) { nextPhase = '2'; label = '2'; }
+  else if (elapsed < 3) { nextPhase = '1'; label = '1'; }
+  else if (elapsed < 3.75) { nextPhase = 'fight'; label = 'FIGHT!'; }
+  else {
+    match.countdownPhase = 'done';
+    match.running = true;
+    window.SkyAudio?.scene('battle',level);
+    keys.clear();
+    overlay.classList.add('hidden');
+    overlay.classList.remove('countdown-mode', 'fight-phase');
+    return;
+  }
+  if (match.countdownPhase !== nextPhase) {
+    match.countdownPhase = nextPhase;
+    title.textContent = label;
+    window.SkyAudio?.sfx(nextPhase==='fight'?'fight':'count');
+    info.textContent = nextPhase === 'fight' ? 'LET THE BATTLE BEGIN!' : 'ROUND '+match.round+' · GET READY';
+    overlay.classList.toggle('fight-phase', nextPhase === 'fight');
+    title.classList.remove('count-pop');
+    void title.offsetWidth; // restart CSS keyframe only when the number changes
+    title.classList.add('count-pop');
+  }
+}
 function frame(t) {
   if (!match || !document.getElementById('battle').classList.contains('active')) return;
   const dt = lastFrame ? Math.min((t-lastFrame)/1000,.035) : 0;
   lastFrame=t;
-  if(match.running && !match.over) update(dt);
+  if(match.running && !match.over){
+    if(match.cutInRemaining>0){
+      match.cutInRemaining=Math.max(0,match.cutInRemaining-dt);
+      if(match.cutInRemaining===0)clearSpecialCutin();
+    }else update(dt);
+  }else if(match.pendingRound){
+    match.roundPause-=dt;
+    if(match.roundPause<=0){match.round++;resetRound();}
+  }else if(!match.over) updateCountdown(dt);
   drawArena();
   animationId=requestAnimationFrame(frame);
 }
 $('overlayButton').addEventListener('click', () => {
   if (match?.over) { startBattle(); return; }
-  match.running=true;
-  $('battleOverlay').classList.add('hidden');
+  // Countdown begins automatically on entering the arena; no manual skip.
 });
 $('retryButton').addEventListener('click', startBattle);
 $('battleHomeButton').addEventListener('click', () => {
-  match=null; keys.clear(); if(animationId)cancelAnimationFrame(animationId); show('home');
+  clearSpecialCutin(); match=null; keys.clear(); if(animationId)cancelAnimationFrame(animationId); show('home');
 });
 window.addEventListener('keydown', e => {
   if (!document.getElementById('battle').classList.contains('active')) return;
@@ -432,8 +616,8 @@ window.addEventListener('keydown', e => {
   if (['a','d','w','j','k','l','i',' '].includes(k)) e.preventDefault();
   if (e.repeat && ['j','k','i'].includes(k)) return;
   keys.add(k);
-  if(!match?.running || match.over) return;
-  if((k==='w'||k===' ') && match.p.y>=FLOOR)match.p.vy=-760;
+  if(!match?.running || match.over || match.cutInRemaining>0) return;
+  if((k==='w'||k===' ') && match.p.y>=FLOOR){match.p.vy=-760;window.SkyAudio?.sfx('jump');}
   if(k==='j')attack(match.p,'punch');
   if(k==='k')attack(match.p,'kick');
   if(k==='i')specialAttack(match.p);

@@ -1,5 +1,15 @@
-const CACHE = "sky-fight-v23";
-const ASSETS = ["./", "./index.html", "./style.css", "./main.js", "./pwa.js", "./manifest.webmanifest", "./assets/mii.png", "./assets/sei.png", "./assets/dai_clean.png", "./assets/lala.png", "./assets/dai.png", "./assets/dai_rig/torso.png", "./assets/dai_rig/head.png", "./assets/dai_rig/left_leg.png", "./assets/dai_rig/front_fore.png", "./assets/dai_rig/front_upper.png", "./assets/dai_rig/original.png", "./assets/dai_rig/right_leg.png", "./assets/dai_rig/rear_arm.png", "./assets/dai_rig/left_shoe.png", "./assets/dai_rig/right_shoe.png", "./assets/dai_rig_v2/torso.png", "./assets/dai_rig_v2/head.png", "./assets/dai_rig_v2/arm_back_upper.png", "./assets/dai_rig_v2/arm_back_lower.png", "./assets/dai_rig_v2/rig.json", "./assets/dai_rig_v2/leg_back.png", "./assets/dai_rig_v2/arm_front_lower.png", "./assets/dai_rig_v2/arm_front_upper.png", "./assets/dai_rig_v2/shoe_front.png", "./assets/dai_rig_v2/source_cutout.png", "./assets/dai_rig_v2/leg_front.png", "./assets/dai_rig_v2/shoe_back.png", "./icons/icon-192.png", "./icons/icon-512.png"];
-self.addEventListener("install", event => { event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)).then(() => self.skipWaiting())); });
-self.addEventListener("activate", event => { event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key)))).then(() => self.clients.claim())); });
-self.addEventListener("fetch", event => { if (event.request.method !== "GET" || new URL(event.request.url).origin !== self.location.origin) return; event.respondWith(caches.match(event.request).then(cached => cached || fetch(event.request))); });
+const CACHE = 'sky-fight-v32-immersive-fullscreen';
+const CORE = ['./', './index.html', './style.css', './main.js', './audio.js', './pwa.js', './manifest.webmanifest', './music/159_BPM130.mp3', './music/427_BPM190.mp3', './music/035_BPM60.mp3', './music/171_BPM75.mp3'];
+self.addEventListener('install', event => {
+  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(CORE)).then(() => self.skipWaiting()));
+});
+self.addEventListener('activate', event => {
+  event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key.startsWith('sky-fight-') && key !== CACHE).map(key => caches.delete(key)))).then(() => self.clients.claim()));
+});
+self.addEventListener('fetch', event => {
+  if(event.request.method !== 'GET' || new URL(event.request.url).origin !== self.location.origin) return;
+  event.respondWith(fetch(event.request).then(response => {
+    if(response.ok){const copy=response.clone();caches.open(CACHE).then(cache=>cache.put(event.request,copy));}
+    return response;
+  }).catch(() => caches.match(event.request).then(cached => cached || (event.request.mode === 'navigate' ? caches.match('./index.html') : Response.error()))));
+});
