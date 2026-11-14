@@ -2,9 +2,13 @@ const fighters=[
  {id:'dai',image:'assets/dai.png',name:'ダイ',type:'バランス型',avatar:'🔥',color:'#4c9cff',stats:[3,3,3,3,3],special:'ファイアボール',description:'全能力が均等な万能ファイター。'},
  {id:'mii',image:'assets/mii.png',name:'ミー',type:'特殊・防御型',avatar:'⚡',color:'#bc77ff',stats:[3,4,4,2,2],special:'左右にレーザー',description:'特殊攻撃と防御に優れたテクニック型。'},
  {id:'sei',image:'assets/sei.png',name:'セイ',type:'スピード型',avatar:'☄️',color:'#ff6868',stats:[4,2,2,3,4],special:'4発の流星群',description:'素早い近接攻撃が得意なファイター。'},
- {id:'lala',image:'assets/lala.png',name:'ララ',type:'高火力・高速型',avatar:'🐩',color:'#ffcc56',stats:[5,2,2,1,5],special:'餌を食べて体力回復',description:'小さな当たり判定と高い攻撃力が特徴。'}
+ {id:'lala',image:'assets/lala.png',name:'ララ',type:'高火力・高速型',avatar:'🐩',color:'#ffcc56',stats:[5,2,2,1,5],special:'餌を食べて体力回復',description:'小さな当たり判定と高い攻撃力が特徴。'},
+ {id:'kisachi',image:'assets/kisachi.png',name:'キサチ',type:'パワー・防御型',avatar:'🍺',color:'#ffad48',stats:[5,2,4,2,2],special:'酔拳',description:'ビールを片手に豪快な連続パンチ！攻守に優れたファイター。'},
+ {id:'shinko',image:'assets/shinko.png',name:'シンコ',type:'体力・テクニック型',avatar:'💗',color:'#ff70bb',stats:[2,4,3,4,2],special:'根性',description:'高い体力と巧みな立ち回り。根性で一時的に防御力アップ！'}
 ];
+const takeBoss={id:'take',image:'assets/take.png',name:'タケ',type:'隠しボス・超パワー型',avatar:'👴',color:'#bd79ff',stats:[5,3,4,4,2],special:'タケの一撃',description:'普段はよぼよぼ、戦えば伝説。'};
 let phase='player',player=null,cpu=null,selected=fighters[0],level=3;
+let bossEncounter=false, bossPending=false, regularCpu=null, regularLevel=3, bossCleared=false;
 const $=id=>document.getElementById(id);
 function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('active',s.id===id));window.SkyAudio?.scene(id,level);}
 function renderFighters(){
@@ -29,7 +33,7 @@ function drawRadar(stats,color){
  for(let i=0;i<5;i++){const [x,y]=point(i,5);ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(x,y);ctx.strokeStyle='#4e5a78';ctx.stroke();const [tx,ty]=point(i,6.6);ctx.fillStyle='#f0f4ff';ctx.font='13px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(labels[i],tx,ty);}
  ctx.beginPath();stats.forEach((v,i)=>{const [x,y]=point(i,v);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.closePath();ctx.fillStyle=color+'55';ctx.fill();ctx.strokeStyle=color;ctx.lineWidth=3;ctx.stroke();
 }
-function beginSelect(){phase='player';player=null;cpu=null;selected=fighters[0];$('selectGuide').textContent='操作するキャラクターを選んでね！';renderFighters();renderDetail();show('select');}
+function beginSelect(){bossEncounter=false;bossPending=false;bossCleared=false;phase='player';player=null;cpu=null;selected=fighters[0];$('selectGuide').textContent='操作するキャラクターを選んでね！';renderFighters();renderDetail();show('select');}
 $('startButton').addEventListener('click',beginSelect);
 $('confirmButton').addEventListener('click',()=>{if(phase==='player'){player=selected;phase='cpu';selected=fighters.find(f=>f.id!==player.id);$('selectGuide').textContent='対戦するCPUキャラクターを選んでね！';renderFighters();renderDetail();}else{cpu=selected;showDifficulty();}});
 $('backButton').addEventListener('click',()=>{if(phase==='cpu'){phase='player';selected=player;player=null;$('selectGuide').textContent='操作するキャラクターを選んでね！';renderFighters();renderDetail();}else show('home');});
@@ -99,13 +103,13 @@ const FLOOR = 432;
 const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
 
 function createCombatant(f, x, facing) {
-  const maxHp = 70 + f.stats[3] * 10;
+  const maxHp = 76 + f.stats[3] * 9;
   return { f, x, y: FLOOR, vx: 0, vy: 0, facing, hp: maxHp, maxHp,
-    width: f.id === 'lala' ? 72 : 82, height: f.id === 'lala' ? 100 : 180,
+    width: f.id === 'lala' ? 78 : 82, height: f.id === 'lala' ? 100 : 180,
     guard: false, attack: null, attackUntil: 0, hitDone: false,
     stunnedUntil: 0, cooldownUntil: 0, aiNext: 0, aiGuardUntil: 0, aiPlan: 0,
     animClock: 0, animState: "idle", animSince: 0, lastGrounded: true,
-    landingUntil: 0, hitFlashUntil: 0, specialMeter: 0, specialReady: false, specialUsed: false, specialUntil: 0, specialCooldown: 0, guardEnergy: 3, healFxUntil: 0 };
+    landingUntil: 0, hitFlashUntil: 0, specialMeter: 0, specialReady: false, specialUsed: false, specialUntil: 0, specialCooldown: 0, guardEnergy: 3, healFxUntil: 0, defenseUntil: 0 };
 }
 function startBattle() {
   if (!player || !cpu) return;
@@ -116,7 +120,7 @@ function startBattle() {
     time: 90, round: 1, winsP: 0, winsC: 0, roundPause: 0, pendingRound: false, running: false, over: false, cutInRemaining: 0, countdown: 0, countdownPhase: "ready", elapsed: 0, now: 0, aiAttack: false, effects: [], particles: [], rings: [], shake: 0, flash: 0 };
   $('pName').textContent = player.name;
   $('cName').textContent = cpu.name;
-  $('battleLevel').textContent = 'CPU LEVEL ' + level;
+  $('battleLevel').textContent = bossEncounter ? 'SECRET BOSS · TAKE' : 'CPU LEVEL ' + level;
   updateRoundHud();
   $('overlayTitle').textContent = '3';
   $('overlayInfo').textContent = 'ROUND 1 · GET READY';
@@ -186,8 +190,10 @@ function attack(f, kind) {
   if (!match?.running || match.over || match.now < f.cooldownUntil || match.now < f.stunnedUntil) return;
   window.SkyAudio?.sfx(kind);
   f.attack = kind;
-  f.attackUntil = match.now + (kind === 'kick' ? 0.30 : 0.22);
-  f.cooldownUntil = match.now + (kind === 'kick' ? 0.68 : 0.43);
+  const pace = 1 + (f.f.stats[4] - 3) * .065;
+  f.attackUntil = match.now + (kind === 'kick' ? 0.30 : 0.22) / pace;
+  f.cooldownUntil = match.now + (kind === 'kick' ? 0.68 : 0.43) / pace;
+  if(f.f.id === 'kisachi') f.cooldownUntil += .10; // 重い一撃には隙を作る
   f.hitDone = false;
 }
 // STEP 31: Hit-confirmed attacks and taking damage charge the special meter.
@@ -206,7 +212,8 @@ function chargeSpecial(f,amount){
 function applyDamage(attacker, target, raw, knock=18){
   if(match.over)return;
   const cpuBonus=(attacker===match.c ? 1 + Math.max(0,level-5)*.055 : 1);
-   const amount=Math.max(1,Math.round(raw*cpuBonus*(target.guard?.2:1)));
+   const defenseFactor = 1 - (target.f.stats[2] - 3) * .065;
+  const amount=Math.max(1,Math.round(raw*cpuBonus*defenseFactor*(target.guard?.2:1)*(match.now<target.defenseUntil?.30:1)));
   target.hp=Math.max(0,target.hp-amount);
   window.SkyAudio?.sfx(target.guard?'guard':'hit');
   burst(target.x,target.y-target.height*.52,target.guard?'#8beaff':'#ffe1a1',target.guard?10:20,150);
@@ -255,7 +262,7 @@ function playSpecialCutin(f){
   const el=$('specialCutin');
   if(!el || !match)return;
   const isPlayer=f===match.p;
-  const palette={dai:['#ff7c38','#ffcf56'],mii:['#a75aff','#6cf4ff'],sei:['#ff455f','#ffca4c'],lala:['#f9b848','#7effbd']};
+  const palette={take:['#ae67ff','#f6e7ff'],dai:['#ff7c38','#ffcf56'],mii:['#a75aff','#6cf4ff'],sei:['#ff455f','#ffca4c'],lala:['#f9b848','#7effbd'],kisachi:['#f6a13e','#ffe0a0'],shinko:['#fc63b7','#ffffff']};
   const [primary,secondary]=palette[f.f.id]||palette.dai;
   el.style.setProperty('--cutin-primary',primary);
   el.style.setProperty('--cutin-secondary',secondary);
@@ -264,7 +271,7 @@ function playSpecialCutin(f){
   $('cutinName').textContent=f.f.name;
   $('cutinMove').textContent=f.f.special;
   $('cutinSide').textContent=isPlayer?'PLAYER SPECIAL':'CPU SPECIAL';
-  $('cutinLabel').textContent=f.f.id==='lala'?'RECOVERY BURST':'SPECIAL ATTACK';
+  $('cutinLabel').textContent=f.f.id==='lala'?'RECOVERY BURST':f.f.id==='shinko'?'DEFENSE BOOST':'SPECIAL ATTACK';
   el.classList.remove('cutin-active');
   void el.offsetWidth;
   el.classList.add('cutin-active');
@@ -299,8 +306,25 @@ function specialAttack(f){
   }else if(f.f.id==='sei'){
     for(let i=0;i<4;i++)fx.push({type:'meteor',owner:f,x:clamp(target.x+(i-1.5)*66,45,955),y:-80-i*75,vy:420+i*42,ttl:2.2,hit:false});
     ring(target.x,FLOOR-15,'#ff7546',45,220,.9);
+  }else if(f.f.id==='take'){
+    fx.push({type:'takePunch',owner:f,delay:.24,ttl:1.0,hit:false});
+    burst(f.x+f.facing*65,f.y-105,'#bd79ff',46,250);
+    ring(f.x+f.facing*70,f.y-100,'#dfb0ff',28,190,.55);
+    match.shake=15;match.flash=.15;
+  }else if(f.f.id==='kisachi'){
+    // 酔拳：近距離で3連撃。攻撃をガードされても軽減される。
+    for(let i=0;i<3;i++)fx.push({type:'drunkenPunch',owner:f,delay:.13+i*.19,ttl:.85,hit:false});
+    burst(f.x+f.facing*55,f.y-105,'#ffb548',28,180);
+    ring(f.x+f.facing*55,f.y-105,'#ffdc85',16,100,.45);
+  }else if(f.f.id==='shinko'){
+    // 根性：5秒間、受けるダメージを70%軽減。
+    f.defenseUntil=match.now+5;
+    fx.push({type:'guts',owner:f,ttl:5});
+    burst(f.x,f.y-f.height*.55,'#ff70bd',40,175);
+    ring(f.x,f.y-f.height*.55,'#ff9ed6',30,135,.8);
+    updateHud();
   }else{
-    f.hp=Math.min(f.maxHp,f.hp+Math.round(f.maxHp*.27));
+    f.hp=Math.min(f.maxHp,f.hp+Math.round(f.maxHp*.19));
     f.healFxUntil=match.now+1.2;
     fx.push({type:'food',owner:f,x:f.x,y:f.y-150,ttl:1.2});
     burst(f.x,f.y-f.height*.65,'#7dffb4',40,160);
@@ -313,7 +337,31 @@ function updateEffects(dt){
   for(let i=fx.length-1;i>=0;i--){
     const e=fx[i],target=e.owner===match.p?match.c:match.p;
     e.ttl-=dt;
-    if(e.type==='fire'){
+    if(e.type==='takePunch'){
+      e.delay-=dt;
+      if(!e.hit&&e.delay<=0){
+        e.hit=true;
+        const x=e.owner.x+e.owner.facing*90,y=e.owner.y-105;
+        burst(x,y,'#d7a2ff',38,240);ring(x,y,'#e3b6ff',25,145,.5);
+        match.shake=18;match.flash=.2;
+        if(Math.abs(e.owner.x-target.x)<215&&Math.abs(e.owner.y-target.y)<125){
+          // Boss signature: guard-breaking strike, mitigated by target's base defense.
+          const prev=target.guard;target.guard=false;
+          applyDamage(e.owner,target,23,48);
+          target.guard=prev;
+        }
+      }
+    }else if(e.type==='drunkenPunch'){
+      e.delay-=dt;
+      if(!e.hit&&e.delay<=0){
+        e.hit=true;
+        const x=e.owner.x+e.owner.facing*78,y=e.owner.y-e.owner.height*.57;
+        burst(x,y,'#ffcc7b',20,170);ring(x,y,'#ff9f48',12,80,.3);
+        if(Math.abs(e.owner.x-target.x)<170&&Math.abs(e.owner.y-target.y)<110){
+          applyDamage(e.owner,target,7+e.owner.f.stats[0]*.65,16);
+        }
+      }
+    }else if(e.type==='fire'){
       e.x+=e.vx*dt;
       if(Math.random()<.85)burst(e.x-e.vx*.018,e.y,'#ff9d32',2,45);
       if(!e.hit&&Math.abs(e.x-target.x)<target.width*.5+22&&Math.abs(e.y-(target.y-target.height*.55))<target.height*.6){
@@ -346,18 +394,38 @@ function tryHit(a, b) {
   if (Math.sign(delta) !== a.facing || Math.abs(delta) > reach + b.width / 2 ||
       Math.abs(a.y - b.y) > 105) return;
   const base = a.attack === 'kick' ? 12 : 7;
-  applyDamage(a,b,base+a.f.stats[0]*1.3-b.f.stats[2]*.65,23);
+  applyDamage(a,b,base+a.f.stats[0]*1.3,23);
   a.hitDone=true;
 }
 function finish(title, info) {
   match.running = false; match.over = true;
   clearSpecialCutin();
-  window.SkyAudio?.scene(title.includes('WIN')?'win':'lose');
+  const won=title.includes('WIN');
+  bossPending=false;
+  if(bossEncounter){
+    if(won){title='LEGEND CLEAR!';info='伝説のタケに勝利！ '+info;bossCleared=true;}
+    else{title='タケに敗北した！';info='';}
+  }else if(won && !bossCleared && Math.random()<.20){
+    bossPending=true;
+    title='WARNING!';
+    info='タケが勝負を挑んできた！';
+  }
+  window.SkyAudio?.scene(won?'win':'lose');
   $('overlayTitle').textContent = title;
   $('overlayInfo').textContent = info;
-  $('overlayButton').textContent = 'もう一度戦う';
+  $('overlayButton').textContent = bossPending?'タケに挑戦！':bossEncounter?'通常ステージに戻る':'もう一度戦う';
   $('overlayButton').hidden = false;
-  $('battleOverlay').classList.remove('hidden');
+  $('battleOverlay').classList.remove('hidden','countdown-mode','fight-phase');
+}
+function leaveTakeEncounter(){
+  bossEncounter=false;bossPending=false;bossCleared=false;
+  if(regularCpu){cpu=regularCpu;level=regularLevel;regularCpu=null;}
+}
+function startTakeBoss(){
+  bossPending=false;bossEncounter=true;
+  regularCpu=cpu;regularLevel=level;
+  cpu=takeBoss;level=10;
+  startBattle();
 }
 function update(dt) {
   const m = match; m.now += dt; m.elapsed += dt;
@@ -382,7 +450,7 @@ function update(dt) {
     c.guard=c.guardEnergy>.05 && m.now<c.aiGuardUntil;
     // 近距離は距離を調整。高難度ではプレイヤーの攻撃中に後退することもある。
     const ideal=level>=8?103:level>=5?93:85;
-    const moveSpeed=155+level*22;
+    const moveSpeed=(190+c.f.stats[4]*27)*(.64+level*.036);
     if(c.guard)c.vx=0;
     else if(gap>ideal+22)c.vx=c.facing*moveSpeed;
     else if(gap<ideal-27)c.vx=-c.facing*(85+level*12);
@@ -399,7 +467,7 @@ function update(dt) {
       c.vy=-760;c.vx=c.facing*(190+level*20);
     }
     if(c.specialMeter>=100&&m.now>=c.specialCooldown&&Math.random()<(.09+level*.072)){
-      if(boss||gap<330||c.f.id==='sei'||c.f.id==='mii'||c.f.id==='lala')specialAttack(c);
+      if(boss||gap<330||['sei','mii','lala','kisachi','shinko','take'].includes(c.f.id))specialAttack(c);
     }
     // 最上位でも正の判断間隔を保証する（元の式はLv8以上で負になっていた）。
     const intervals=[.72,.62,.54,.46,.38,.31,.25,.19,.14,.095];
@@ -445,7 +513,7 @@ function update(dt) {
 // STEP 17: 全キャラクター共通の、立ち絵を崩さないモーション描画。
 // ダイはSTEP15の修復スプライトを採用。選択画面用の元画像は維持。
 const art = {};
-for (const f of fighters) {
+for (const f of [...fighters, takeBoss]) {
   const im = new Image();
   im.src = f.id === 'dai' ? 'assets/dai_clean.png' : f.image;
   art[f.id] = im;
@@ -505,6 +573,10 @@ function drawCombatant(f){
     }
     c.restore();
   }
+  if(match.now<f.defenseUntil){
+    c.save();c.globalAlpha=.62+.15*Math.sin(match.now*14);c.shadowBlur=24;c.shadowColor='#ff58b5';c.strokeStyle='#ff8acb';c.lineWidth=5;
+    c.beginPath();c.ellipse(0,-height*.51,width*.70,height*.57,0,0,Math.PI*2);c.stroke();c.restore();
+  }
   if(match.now<f.healFxUntil){
     c.save();c.font='bold 26px sans-serif';c.fillStyle='#72ffb0';c.textAlign='center';
     c.shadowBlur=15;c.shadowColor='#00ff80';c.fillText('+ HP',0,-height-15-(f.healFxUntil-match.now)*9);c.restore();
@@ -530,6 +602,9 @@ function drawEffects(){
       c.shadowBlur=24;c.shadowColor='#ff653c';c.strokeStyle='#ff9b5b';c.lineWidth=10;
       c.beginPath();c.moveTo(e.x-22,e.y-60);c.lineTo(e.x,e.y);c.stroke();
       c.fillStyle='#fff3a0';c.beginPath();c.arc(e.x,e.y,18,0,Math.PI*2);c.fill();
+    }else if(e.type==='guts'){
+      c.globalAlpha=.28+.12*Math.sin(match.now*12);c.strokeStyle='#ff79bd';c.shadowColor='#ff58b5';c.shadowBlur=22;c.lineWidth=6;
+      c.beginPath();c.ellipse(e.owner.x,e.owner.y-e.owner.height*.52,65,115,0,0,Math.PI*2);c.stroke();
     }else if(e.type==='food'){
       c.font='45px sans-serif';c.textAlign='center';c.fillText('🍖',e.x,e.y-12*Math.sin(match.now*6));
     }
@@ -603,12 +678,12 @@ function frame(t) {
   animationId=requestAnimationFrame(frame);
 }
 $('overlayButton').addEventListener('click', () => {
-  if (match?.over) { startBattle(); return; }
+  if (match?.over) { if(bossPending)startTakeBoss();else {if(bossEncounter)leaveTakeEncounter();startBattle();} return; }
   // Countdown begins automatically on entering the arena; no manual skip.
 });
-$('retryButton').addEventListener('click', startBattle);
+$('retryButton').addEventListener('click', () => {if(bossPending)startTakeBoss();else {if(bossEncounter)leaveTakeEncounter();startBattle();}});
 $('battleHomeButton').addEventListener('click', () => {
-  clearSpecialCutin(); match=null; keys.clear(); if(animationId)cancelAnimationFrame(animationId); show('home');
+  clearSpecialCutin(); match=null; keys.clear(); if(animationId)cancelAnimationFrame(animationId); leaveTakeEncounter();show('home');
 });
 window.addEventListener('keydown', e => {
   if (!document.getElementById('battle').classList.contains('active')) return;

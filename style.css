@@ -550,3 +550,7 @@ html { -webkit-text-size-adjust:100%; }
   #battle .touch-controls button {min-height:32px;padding:3px 6px;}
   #battle .arena-wrap {width:min(100%,calc((100dvh - 120px)*1.9230769));}
 }
+
+/* STEP 33: six-character responsive selection */
+@media(min-width:781px){.character-list{grid-template-columns:repeat(3,minmax(0,1fr));max-width:850px;margin-inline:auto}}
+@media(min-width:1100px){.character-list{grid-template-columns:repeat(6,minmax(0,1fr));max-width:1200px}}

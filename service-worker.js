@@ -1,5 +1,5 @@
-const CACHE = 'sky-fight-v32-immersive-fullscreen';
-const CORE = ['./', './index.html', './style.css', './main.js', './audio.js', './pwa.js', './manifest.webmanifest', './music/159_BPM130.mp3', './music/427_BPM190.mp3', './music/035_BPM60.mp3', './music/171_BPM75.mp3'];
+const CACHE = 'sky-fight-v37-take-text';
+const CORE = ['./', './index.html', './style.css', './main.js', './audio.js', './pwa.js', './manifest.webmanifest', './music/159_BPM130.mp3', './music/427_BPM190.mp3', './music/035_BPM60.mp3', './music/171_BPM75.mp3', './assets/kisachi.png', './assets/shinko.png', './assets/take.png'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(CORE)).then(() => self.skipWaiting()));
 });
