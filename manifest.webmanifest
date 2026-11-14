@@ -1,0 +1,25 @@
+{
+  "name": "SKY FIGHT",
+  "short_name": "SKY FIGHT",
+  "description": "4人のファイターで戦うオリジナル格闘ゲーム",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#101a37",
+  "theme_color": "#101a37",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+
+<html lang="ja">
+<head>
+<meta charset="utf-8"/>
+<meta name="theme-color" content="#101a37"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="SKY FIGHT"/>
+<link rel="manifest" href="manifest.webmanifest"/>
+<link rel="apple-touch-icon" href="icons/icon-192.png"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<title>
+   SKY FIGHT
+  </title>
+<link href="style.css" rel="stylesheet"/>
+<script defer="" src="main.js">
+</script>
+</head>
+<body>
+<main>
+<section class="screen home active" id="home"><div aria-hidden="true" class="home-noise"></div><div aria-hidden="true" class="home-grid"></div><div aria-hidden="true" class="home-lightning"></div><div class="home-topline"><span class="home-brand">SF / ORIGINAL FIGHTING GAME</span><span class="home-version">VER. 1.0 · 4 FIGHTERS</span></div><div aria-hidden="true" class="home-characters"><img alt="" class="home-character hc-mii" src="assets/mii.png"/><img alt="" class="home-character hc-dai" src="assets/dai_clean.png"/><img alt="" class="home-character hc-sei" src="assets/sei.png"/><img alt="" class="home-character hc-lala" src="assets/lala.png"/></div><div class="home-center"><div class="home-kicker"><span class="home-line"></span> THE BATTLE BEGINS <span class="home-line"></span></div><h1 class="home-logo"><span class="home-logo-sky">SKY</span><span class="home-logo-fight">FIGHT</span></h1><div aria-hidden="true" class="home-strike"></div><p class="home-description">4人のファイターが、頂点をかけて激突する。</p><button class="home-start" id="startButton"><span class="home-start-icon">▶</span><span>GAME START</span><span class="home-start-arrow">›</span></button><p class="home-tip">SELECT YOUR FIGHTER · DEFEAT THE CPU</p></div><div class="home-footer"><span>DAI · MII · SEI · LALA</span><span>READY FOR BATTLE?</span></div></section>
+<section class="screen" id="select">
+<h2>
+     SELECT YOUR FIGHTER
+    </h2>
+<p id="selectGuide">
+     操作するキャラクターを選んでね！
+    </p>
+<div class="character-list" id="characterList">
+</div>
+<div class="detail">
+<div class="detail-portrait">
+<img alt="選択中のキャラクター" id="detailImage"/>
+</div>
+<div class="detail-text">
+<h3 id="characterName">
+</h3>
+<p id="characterType">
+</p>
+<p id="characterSpecial">
+</p>
+<p id="characterDescription">
+</p>
+</div>
+<canvas aria-label="能力レーダーチャート" height="290" id="radar" width="320">
+</canvas>
+</div>
+<div class="actions">
+<button id="confirmButton">
+      このキャラにする
+     </button>
+<button class="secondary" id="backButton">
+      戻る
+     </button>
+</div>
+</section>
+<section class="screen" id="difficulty">
+<h2>
+     CPU LEVEL
+    </h2>
+<p id="matchup">
+</p>
+<div class="levels" id="levels">
+</div>
+<div class="actions">
+<button id="battleButton">
+      BATTLE START
+     </button>
+<button class="secondary" id="difficultyBack">
+      戻る
+     </button>
+</div>
+</section>
+<section aria-label="対戦カード" class="screen versus-screen" id="versus">
+<p class="vs-eyebrow">
+     NEXT BATTLE
+    </p>
+<h2 class="vs-heading">
+     READY TO FIGHT!
+    </h2>
+<div class="vs-stage">
+<div class="vs-fighter vs-player">
+<span class="vs-side">
+       PLAYER 1
+      </span>
+<img alt="プレイヤーキャラクター" id="vsPlayerImage"/>
+<h3 id="vsPlayerName">
+</h3>
+<p id="vsPlayerSpecial">
+</p>
+</div>
+<div aria-hidden="true" class="vs-mark">
+      VS
+     </div>
+<div class="vs-fighter vs-opponent">
+<span class="vs-side">
+       CPU
+      </span>
+<img alt="CPUキャラクター" id="vsCpuImage"/>
+<h3 id="vsCpuName">
+</h3>
+<p id="vsCpuSpecial">
+</p>
+</div>
+</div>
+<p class="vs-level" id="vsLevel">
+</p>
+<div class="actions">
+<button id="vsConfirm">
+      対戦準備完了！
+     </button>
+<button class="secondary" id="vsBack">
+      難易度選択に戻る
+     </button>
+</div>
+</section>
+<section aria-label="バトル画面" class="screen battle-screen" id="battle">
+<div class="battle-top">
+<div class="health-side">
+<span id="pName">
+       PLAYER
+      </span>
+<div class="hp-track">
+<div class="hp-fill" id="pHp">
+</div>
+</div>
+<div class="special-status" id="pSpecial">必殺技：被ダメージ30%で解放</div>
+<div class="guard-track"><div class="guard-fill" id="pGuard"></div></div>
+<small id="pHpText">
+       100 / 100
+      </small>
+</div>
+<div class="battle-center">
+<b>
+       SKY FIGHT
+      </b>
+<strong id="battleTime">
+       90
+      </strong>
+<span id="battleLevel">
+       CPU LEVEL 3
+      </span>
+</div>
+<div class="health-side right">
+<span id="cName">
+       CPU
+      </span>
+<div class="hp-track">
+<div class="hp-fill cpu-hp" id="cHp">
+</div>
+</div>
+<div class="special-status" id="cSpecial">必殺技：被ダメージ30%で解放</div>
+<div class="guard-track"><div class="guard-fill" id="cGuard"></div></div>
+<small id="cHpText">
+       100 / 100
+      </small>
+</div>
+</div>
+<div class="arena-wrap">
+<canvas aria-label="格闘ゲームフィールド" height="520" id="arena" width="1000">
+</canvas>
+<div class="battle-overlay" id="battleOverlay">
+<h2 id="overlayTitle">
+       ROUND 1
+      </h2>
+<p id="overlayInfo">
+       準備はいい？
+      </p>
+<button id="overlayButton">
+       FIGHT!
+      </button>
+</div>
+</div>
+<div class="touch-controls" id="touchControls" aria-label="スマホ用操作ボタン">
+  <div class="touch-move"><button type="button" data-key="a" aria-label="左へ移動">◀</button><button type="button" data-key="d" aria-label="右へ移動">▶</button><button type="button" data-key="w" aria-label="ジャンプ">JUMP</button></div>
+  <div class="touch-actions"><button type="button" data-key="j">PUNCH</button><button type="button" data-key="k">KICK</button><button type="button" data-key="l">GUARD</button><button type="button" data-key="i" class="touch-special">SPECIAL</button></div>
+</div>
+<div class="battle-bottom">
+<p>
+<b>
+       操作：
+      </b>
+      A / D 移動　W または Space ジャンプ　J パンチ　K キック　L ガード（最大3秒）　<strong>I 必殺技</strong>（HP30%減少で解放）
+     </p>
+<div class="actions">
+<button class="secondary" id="retryButton">
+       再戦
+      </button>
+<button class="secondary" id="battleHomeButton">
+       ホームに戻る
+      </button>
+</div>
+</div>
+</section>
+</main>
+<div aria-hidden="true" hidden="" id="step17-note">STEP 18: All fighters specials enabled</div><script defer src="pwa.js"></script></body>
+</html>
